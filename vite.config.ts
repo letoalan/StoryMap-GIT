@@ -74,10 +74,58 @@ function inlineCssPlugin(): Plugin {
   };
 }
 
+// Génère un index.html de démonstration dans /dist, qui charge le
+// bundle IIFE final (storymap-git.js) et monte automatiquement le
+// Studio complet sur #storymap-git-root, comme en dev
+function generateDemoHtmlPlugin(): Plugin {
+  return {
+    name: 'generate-demo-html-plugin',
+    apply: 'build',
+    closeBundle() {
+      const outDir = path.join(process.cwd(), 'dist');
+      const html = `<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="StoryMap-GIT — Éditeur de cartes narratives géolocalisées pour BTS Tourisme GIT. 100% local, RGPD, sans backend." />
+    <title>StoryMap-GIT — Mon Circuit Touristique</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 0;
+        background: #f8fafc;
+        color: #0f172a;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="storymap-git-root"></div>
+    <script src="./storymap-git.js"></script>
+  </body>
+</html>`;
+      fs.writeFileSync(path.join(outDir, 'index.html'), html);
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig({
+  // Nécessaire pour GitHub Pages : remplacer "StoryMap-GIT" par le
+  // nom exact de votre repo GitHub. Sans cette ligne, les chemins
+  // d'assets seront cassés une fois déployé sur
+  // https://<utilisateur>.github.io/StoryMap-GIT/
   base: '/StoryMap-GIT/',
-  plugins: [react(), serveTilesPlugin(), copyTilesPlugin(), inlineCssPlugin()],
+  plugins: [
+    react(),
+    serveTilesPlugin(),
+    copyTilesPlugin(),
+    inlineCssPlugin(),
+    generateDemoHtmlPlugin(),
+  ],
   define: {
     'process.env.NODE_ENV': JSON.stringify('production'),
   },
