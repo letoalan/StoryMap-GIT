@@ -24,6 +24,24 @@ function serveTilesPlugin(): Plugin {
   };
 }
 
+// Copie le dossier /tiles vers /dist/tiles lors du build, pour que
+// GitHub Pages serve les fichiers PMTiles au même chemin qu'en dev
+function copyTilesPlugin(): Plugin {
+  return {
+    name: 'copy-tiles-plugin',
+    apply: 'build',
+    closeBundle() {
+      const srcDir = path.join(process.cwd(), 'tiles');
+      const outDir = path.join(process.cwd(), 'dist', 'tiles');
+      if (!fs.existsSync(srcDir)) return;
+      fs.mkdirSync(outDir, { recursive: true });
+      for (const file of fs.readdirSync(srcDir)) {
+        fs.copyFileSync(path.join(srcDir, file), path.join(outDir, file));
+      }
+    },
+  };
+}
+
 function inlineCssPlugin(): Plugin {
   return {
     name: 'inline-css-plugin',
@@ -58,7 +76,8 @@ function inlineCssPlugin(): Plugin {
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react(), serveTilesPlugin(), inlineCssPlugin()],
+  base: '/StoryMap-GIT/',
+  plugins: [react(), serveTilesPlugin(), copyTilesPlugin(), inlineCssPlugin()],
   define: {
     'process.env.NODE_ENV': JSON.stringify('production'),
   },
