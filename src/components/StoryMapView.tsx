@@ -1,0 +1,265 @@
+import React, { useEffect, useRef, useState } from 'react';
+import maplibregl from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import {
+  registerPMTilesProtocol,
+  createPMTilesStyle,
+  MapStyleType,
+  GITHUB_PAGES_TILE_OFFERS,
+} from '../utils/pmtilesProtocol';
+import { StorySlideLocation, StorySlide } from '../types/story';
+
+interface StoryMapViewProps {
+  location?: StorySlideLocation;
+  slides?: StorySlide[];
+  currentIndex?: number;
+  mapStyle?: MapStyleType;
+  tilesBaseUrl?: string;
+  onSelectSlide?: (index: number) => void;
+  onStyleChange?: (newStyle: MapStyleType) => void;
+  onMapLoad?: (map: maplibregl.Map) => void;
+}
+
+export const StoryMapView: React.FC<StoryMapViewProps> = ({
+  location = { lat: 37.8516, lon: 15.2853, zoom: 13 },
+  slides = [],
+  currentIndex = 0,
+  mapStyle = 'editorial',
+  tilesBaseUrl,
+  onSelectSlide,
+  onStyleChange,
+  onMapLoad,
+}) => {
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const markersRef = useRef<maplibregl.Marker[]>([]);
+
+  const [activeStyle, setActiveStyle] = useState<MapStyleType>(mapStyle);
+  const [showTilePicker, setShowTilePicker] = useState<boolean>(false);
+
+  useEffect(() => {
+    setActiveStyle(mapStyle);
+  }, [mapStyle]);
+
+  // Initialisation de la carte MapLibre
+  useEffect(() => {
+    registerPMTilesProtocol();
+
+    if (!mapContainerRef.current) return;
+
+    const styleSpec = createPMTilesStyle(activeStyle, tilesBaseUrl);
+
+    const map = new maplibregl.Map({
+      container: mapContainerRef.current,
+      style: styleSpec,
+      center: [location.lon, location.lat],
+      zoom: location.zoom,
+      attributionControl: false,
+    });
+
+    map.addControl(new maplibregl.NavigationControl(), 'top-right');
+    map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+
+    map.on('error', (e) => {
+      if (e?.error?.message?.includes('content-length') || e?.error?.message?.includes('Byte Serving') || e?.error?.message?.includes('pmtiles')) {
+        console.warn('[StoryMap-GIT] Fallback tuile capturé gracieusement :', e.error.message);
+      }
+    });
+
+    map.on('load', () => {
+      if (onMapLoad) {
+        onMapLoad(map);
+      }
+    });
+
+    mapRef.current = map;
+
+    return () => {
+      map.remove();
+    };
+  }, [tilesBaseUrl]);
+
+  // Modification dynamique du style sans réinstancier la carte
+  const handleStyleSelect = (newStyle: MapStyleType) => {
+    setActiveStyle(newStyle);
+    if (mapRef.current) {
+      const newSpec = createPMTilesStyle(newStyle, tilesBaseUrl);
+      mapRef.current.setStyle(newSpec);
+    }
+    if (onStyleChange) {
+      onStyleChange(newStyle);
+    }
+  };
+
+  // Synchronisation des marqueurs sur la carte
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    // Supprimer les anciens marqueurs
+    markersRef.current.forEach((m) => m.remove());
+    markersRef.current = [];
+
+    slides.forEach((slide, idx) => {
+      const isActive = idx === currentIndex;
+      const el = document.createElement('div');
+      el.className = `storymap-marker ${isActive ? 'active' : ''}`;
+      el.innerText = String(idx + 1);
+
+      Object.assign(el.style, {
+        width: isActive ? '34px' : '26px',
+        height: isActive ? '34px' : '26px',
+        borderRadius: '50%',
+        backgroundColor: isActive ? '#dc2626' : '#2563eb',
+        color: '#ffffff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: 'bold',
+        fontSize: isActive ? '14px' : '12px',
+        border: '2px solid #ffffff',
+        boxShadow: isActive
+          ? '0 0 0 4px rgba(220, 38, 38, 0.35), 0 3px 8px rgba(15,23,42,0.3)'
+          : '0 2px 6px rgba(15,23,42,0.2)',
+        cursor: 'pointer',
+        transition: 'all 0.2s ease',
+        zIndex: isActive ? 10 : 1,
+      });
+
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (onSelectSlide) {
+          onSelectSlide(idx);
+        }
+      });
+
+      const marker = new maplibregl.Marker({ element: el })
+        .setLngLat([slide.location.lon, slide.location.lat])
+        .addTo(map);
+
+      markersRef.current.push(marker);
+    });
+  }, [slides, currentIndex, onSelectSlide]);
+
+  // Déplacement réactif lors des changements d'étape (flyTo)
+  useEffect(() => {
+    if (mapRef.current) {
+      mapRef.current.flyTo({
+        center: [location.lon, location.lat],
+        zoom: location.zoom,
+        essential: true,
+        duration: 1500,
+      });
+    }
+  }, [location.lat, location.lon, location.zoom]);
+
+  return (
+    <div
+      className="storymap-map-container"
+      style={{
+        width: '100%',
+        height: '100%',
+        minHeight: '400px',
+        position: 'relative',
+        borderRadius: '12px',
+        overflow: 'hidden',
+        boxShadow: '0 4px 12px rgba(15, 23, 42, 0.08)',
+      }}
+    >
+      {/* Element canvas MapLibre GL */}
+      <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
+
+      {/* Éditeur / Sélecteur de Tuiles Flottant Compatible GitHub Pages */}
+      <div style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 20 }}>
+        <button
+          type="button"
+          onClick={() => setShowTilePicker(!showTilePicker)}
+          style={{
+            background: '#ffffff',
+            color: '#1e3a8a',
+            border: '1px solid #cbd5e1',
+            borderRadius: '8px',
+            padding: '0.45rem 0.75rem',
+            fontSize: '0.78rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(15, 23, 42, 0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          🎨 Éditeur de tuiles
+          <span style={{ fontSize: '0.65rem', background: '#dcfce7', color: '#166534', padding: '0.1rem 0.4rem', borderRadius: '10px', border: '1px solid #86efac' }}>
+            GitHub Pages
+          </span>
+          <span>{showTilePicker ? '▴' : '▾'}</span>
+        </button>
+
+        {showTilePicker && (
+          <div
+            style={{
+              marginTop: '0.5rem',
+              width: '300px',
+              maxHeight: '380px',
+              overflowY: 'auto',
+              background: '#ffffff',
+              border: '1px solid #cbd5e1',
+              borderRadius: '12px',
+              padding: '0.85rem',
+              boxShadow: '0 12px 32px rgba(15, 23, 42, 0.2)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.55rem',
+              boxSizing: 'border-box',
+            }}
+          >
+            <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '0.4rem', marginBottom: '0.2rem' }}>
+              <strong style={{ fontSize: '0.82rem', color: '#0f172a', display: 'block' }}>
+                🗺️ Fonds de cartes (Hébergement Statique GH Pages)
+              </strong>
+              <span style={{ fontSize: '0.7rem', color: '#64748b' }}>
+                0 serveur backend • Range Requests • CORS Libre
+              </span>
+            </div>
+
+            {GITHUB_PAGES_TILE_OFFERS.map((offer) => {
+              const isSelected = offer.id === activeStyle;
+              return (
+                <div
+                  key={offer.id}
+                  onClick={() => handleStyleSelect(offer.id)}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: '0.5rem 0.65rem',
+                    borderRadius: '8px',
+                    border: `1.5px solid ${isSelected ? '#2563eb' : '#e2e8f0'}`,
+                    background: isSelected ? '#eff6ff' : '#f8fafc',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: isSelected ? '#1e3a8a' : '#334155' }}>
+                      {offer.icon} {offer.label}
+                    </span>
+                    {isSelected && <span style={{ fontSize: '0.7rem', color: '#2563eb', fontWeight: 800 }}>✓ Actif</span>}
+                  </div>
+                  <span style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.15rem' }}>
+                    {offer.description}
+                  </span>
+                  <span style={{ fontSize: '0.65rem', color: '#059669', fontWeight: 600, marginTop: '0.2rem' }}>
+                    {offer.githubPagesNotice}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
