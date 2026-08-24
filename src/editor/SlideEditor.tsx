@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { StoryData, StorySlide } from '../types/story';
 import { MediaUploader } from './MediaUploader';
 import { exportToJsonFile } from './storyDataExport';
@@ -46,6 +46,19 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
     newSlides[activeSlideIndex] = updatedSlide;
     onChange({ ...storyData, slides: newSlides });
   };
+
+  // Handler pour le clic sur la carte (mode positionnement GPS)
+  const handleMapClick = useCallback((newLocation: { lat: number; lon: number; zoom: number }) => {
+    const newSlides = [...storyData.slides];
+    const slide = newSlides[activeSlideIndex];
+    if (slide) {
+      newSlides[activeSlideIndex] = {
+        ...slide,
+        location: newLocation,
+      };
+      onChange({ ...storyData, slides: newSlides });
+    }
+  }, [storyData, activeSlideIndex, onChange]);
 
   const handleAddSlide = () => {
     const newSlide: StorySlide = {
@@ -719,7 +732,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
             </span>
           </div>
           <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>
-            La carte se positionne automatiquement sur l'étape sélectionnée.
+            Cliquez sur « 📍 Placer l'étape ici » puis cliquez sur la carte pour définir les coordonnées GPS.
           </p>
           
           <div style={{ flex: 1, minHeight: '500px', borderRadius: '10px', overflow: 'hidden', border: '1px solid #cbd5e1', boxShadow: '0 4px 12px rgba(15, 23, 42, 0.06)' }}>
@@ -728,6 +741,7 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               slides={storyData.slides}
               currentIndex={activeSlideIndex}
               onSelectSlide={setActiveSlideIndex}
+              onMapClick={handleMapClick}
             />
           </div>
         </div>

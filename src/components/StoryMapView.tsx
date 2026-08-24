@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import {
@@ -18,6 +18,8 @@ interface StoryMapViewProps {
   onSelectSlide?: (index: number) => void;
   onStyleChange?: (newStyle: MapStyleType) => void;
   onMapLoad?: (map: maplibregl.Map) => void;
+  /** Callback appelé lors d'un clic en mode positionnement GPS */
+  onMapClick?: (location: StorySlideLocation) => void;
 }
 
 export const StoryMapView: React.FC<StoryMapViewProps> = ({
@@ -29,6 +31,7 @@ export const StoryMapView: React.FC<StoryMapViewProps> = ({
   onSelectSlide,
   onStyleChange,
   onMapLoad,
+  onMapClick,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -36,6 +39,23 @@ export const StoryMapView: React.FC<StoryMapViewProps> = ({
 
   const [activeStyle, setActiveStyle] = useState<MapStyleType>(mapStyle);
   const [showTilePicker, setShowTilePicker] = useState<boolean>(false);
+  const [pickMode, setPickMode] = useState<boolean>(false);
+  const [pickToast, setPickToast] = useState<string | null>(null);
+  const pickModeRef = useRef<boolean>(false);
+  const onMapClickRef = useRef(onMapClick);
+
+  // Garder la ref synchronisée avec la prop
+  useEffect(() => {
+    onMapClickRef.current = onMapClick;
+  }, [onMapClick]);
+
+  useEffect(() => {
+    pickModeRef.current = pickMode;
+    // Changer le curseur de la carte
+    if (mapRef.current) {
+      mapRef.current.getCanvas().style.cursor = pickMode ? 'crosshair' : '';
+    }
+  }, [pickMode]);
 
   useEffect(() => {
     setActiveStyle(mapStyle);
@@ -70,6 +90,18 @@ export const StoryMapView: React.FC<StoryMapViewProps> = ({
       if (onMapLoad) {
         onMapLoad(map);
       }
+    });
+
+    // Clic en mode positionnement GPS
+    map.on('click', (e) => {
+      if (!pickModeRef.current || !onMapClickRef.current) return;
+      const lat = Number(e.lngLat.lat.toFixed(5));
+      const lon = Number(e.lngLat.lng.toFixed(5));
+      const zoom = Math.round(map.getZoom());
+      onMapClickRef.current({ lat, lon, zoom });
+      setPickMode(false);
+      setPickToast(`📍 Position définie : ${lat}°N, ${lon}°E`);
+      setTimeout(() => setPickToast(null), 2500);
     });
 
     mapRef.current = map;
@@ -168,6 +200,91 @@ export const StoryMapView: React.FC<StoryMapViewProps> = ({
     >
       {/* Element canvas MapLibre GL */}
       <div ref={mapContainerRef} style={{ width: '100%', height: '100%' }} />
+
+      {/* Bouton de mode positionnement GPS + toast */}
+      {onMapClick && (
+        <>
+          <button
+            type="button"
+            onClick={() => setPickMode(!pickMode)}
+            title={pickMode ? 'Annuler le positionnement' : 'Cliquer sur la carte pour positionner cette étape'}
+            style={{
+              position: 'absolute',
+              bottom: '12px',
+              left: '12px',
+              zIndex: 20,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              padding: '0.5rem 0.9rem',
+              background: pickMode
+                ? 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)'
+                : 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%)',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '10px',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: pickMode
+                ? '0 4px 14px rgba(220, 38, 38, 0.4), 0 0 0 3px rgba(220, 38, 38, 0.15)'
+                : '0 4px 14px rgba(37, 99, 235, 0.35)',
+              transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+              animation: pickMode ? 'none' : undefined,
+              fontFamily: 'inherit',
+            }}
+          >
+            {pickMode ? '✕ Annuler' : '📍 Placer l\'étape ici'}
+          </button>
+
+          {/* Bandeau indicateur mode actif */}
+          {pickMode && (
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                padding: '0.45rem 1rem',
+                background: 'linear-gradient(135deg, rgba(220, 38, 38, 0.92) 0%, rgba(239, 68, 68, 0.92) 100%)',
+                color: '#ffffff',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                textAlign: 'center',
+                zIndex: 25,
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+                letterSpacing: '0.01em',
+                animation: 'lp-fadeIn 0.3s ease-out',
+              }}
+            >
+              🎯 Cliquez sur la carte pour positionner l'étape
+            </div>
+          )}
+
+          {/* Toast de confirmation */}
+          {pickToast && (
+            <div
+              style={{
+                position: 'absolute',
+                bottom: '56px',
+                left: '12px',
+                zIndex: 25,
+                padding: '0.5rem 1rem',
+                background: '#166534',
+                color: '#ffffff',
+                borderRadius: '10px',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                boxShadow: '0 4px 14px rgba(22, 101, 52, 0.3)',
+                animation: 'lp-fadeInUp 0.3s ease-out',
+              }}
+            >
+              {pickToast}
+            </div>
+          )}
+        </>
+      )}
 
       {/* Éditeur / Sélecteur de Tuiles Flottant Compatible GitHub Pages */}
       <div style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 20 }}>
