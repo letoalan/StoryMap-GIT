@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import {
@@ -59,7 +59,11 @@ export const StoryMapView: React.FC<StoryMapViewProps> = ({
 
   useEffect(() => {
     setActiveStyle(mapStyle);
-  }, [mapStyle]);
+    if (mapRef.current) {
+      const newSpec = createPMTilesStyle(mapStyle, tilesBaseUrl);
+      mapRef.current.setStyle(newSpec);
+    }
+  }, [mapStyle, tilesBaseUrl]);
 
   // Initialisation de la carte MapLibre
   useEffect(() => {

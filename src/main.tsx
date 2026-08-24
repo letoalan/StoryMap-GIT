@@ -29,7 +29,7 @@ export function renderStoryMap(containerId: string, rawJson?: unknown, options: 
       <div className="storymap-git-wrapper">
         <StoryMapContainer
           data={storyData}
-          mapStyle={options.mapStyle || 'base'}
+          mapStyle={options.mapStyle || storyData.mapStyle || 'editorial'}
           tilesBaseUrl={options.tilesBaseUrl}
         />
       </div>

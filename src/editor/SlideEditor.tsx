@@ -740,6 +740,13 @@ export const SlideEditor: React.FC<SlideEditorProps> = ({
               location={currentSlide.location}
               slides={storyData.slides}
               currentIndex={activeSlideIndex}
+              mapStyle={storyData.mapStyle || 'editorial'}
+              onStyleChange={(newStyle) => {
+                onChange({
+                  ...storyData,
+                  mapStyle: newStyle,
+                });
+              }}
               onSelectSlide={setActiveSlideIndex}
               onMapClick={handleMapClick}
             />

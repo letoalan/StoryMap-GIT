@@ -1,3 +1,5 @@
+import { MapStyleType } from '../utils/pmtilesProtocol';
+
 export interface StorySlideLocation {
   lat: number;
   lon: number;
@@ -24,6 +26,7 @@ export interface StorySlide {
 
 export interface StoryData {
   slides: StorySlide[];
+  mapStyle?: MapStyleType;
 }
 
 // Types pour la donnée brute Knight Lab
@@ -49,10 +52,16 @@ export interface KnightLabRawSlide {
 
 export interface KnightLabRawData {
   storymap?: {
+    map_type?: string;
+    mapStyle?: string;
     slides?: KnightLabRawSlide[];
   };
   story?: {
+    map_type?: string;
+    mapStyle?: string;
     slides?: KnightLabRawSlide[];
   };
   slides?: KnightLabRawSlide[];
+  map_type?: string;
+  mapStyle?: string;
 }

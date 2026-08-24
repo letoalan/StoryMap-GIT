@@ -1,4 +1,19 @@
 import { StoryData, StorySlide, KnightLabRawData, KnightLabRawSlide } from '../types/story';
+import { MapStyleType } from './pmtilesProtocol';
+
+const VALID_MAP_STYLES: Set<string> = new Set([
+  'base',
+  'editorial',
+  'positron',
+  'dark_matter',
+  'satellite_hybrid',
+  'satellite',
+  'natgeo',
+  'topographique',
+  'cyclosm',
+  'securite',
+  'relief',
+]);
 
 /**
  * Valide et convertit un objet JSON issu de Knight Lab StoryMapJS vers la structure interne StoryData.
@@ -56,5 +71,34 @@ export function parseKnightLabJson(rawJson: unknown): StoryData {
     return slide;
   });
 
-  return { slides };
+  // Extraction du style de carte s'il est spécifié
+  const rawMapType =
+    data.storymap?.map_type ||
+    data.storymap?.mapStyle ||
+    data.story?.map_type ||
+    data.story?.mapStyle ||
+    data.map_type ||
+    data.mapStyle;
+
+  let mapStyle: MapStyleType | undefined;
+  if (rawMapType) {
+    if (VALID_MAP_STYLES.has(rawMapType)) {
+      mapStyle = rawMapType as MapStyleType;
+    } else if (rawMapType.includes('toner') || rawMapType.includes('light') || rawMapType.includes('positron')) {
+      mapStyle = 'positron';
+    } else if (rawMapType.includes('dark')) {
+      mapStyle = 'dark_matter';
+    } else if (rawMapType.includes('satellite')) {
+      mapStyle = 'satellite_hybrid';
+    } else if (rawMapType.includes('osm') || rawMapType.includes('standard')) {
+      mapStyle = 'base';
+    } else {
+      mapStyle = 'editorial';
+    }
+  }
+
+  return {
+    slides,
+    ...(mapStyle ? { mapStyle } : {}),
+  };
 }

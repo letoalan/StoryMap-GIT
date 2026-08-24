@@ -42,6 +42,8 @@ export const StoryMapContainer: React.FC<StoryMapContainerProps> = ({
     }
   };
 
+  const effectiveMapStyle = data.mapStyle || mapStyle || 'editorial';
+
   return (
     <div className="storymap-app-container" style={styles.container}>
       {/* Layout Carte Dominante (65% carte / 35% slide) */}
@@ -51,7 +53,7 @@ export const StoryMapContainer: React.FC<StoryMapContainerProps> = ({
             location={currentSlide.location}
             slides={data.slides}
             currentIndex={currentIndex}
-            mapStyle={mapStyle}
+            mapStyle={effectiveMapStyle}
             tilesBaseUrl={tilesBaseUrl}
             onSelectSlide={setCurrentIndex}
           />

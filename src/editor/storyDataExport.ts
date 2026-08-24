@@ -6,6 +6,8 @@ import { StoryData, KnightLabRawData } from '../types/story';
 export function formatToKnightLabJson(storyData: StoryData): KnightLabRawData {
   return {
     storymap: {
+      map_type: storyData.mapStyle || 'editorial',
+      mapStyle: storyData.mapStyle || 'editorial',
       slides: storyData.slides.map((slide) => ({
         type: slide.type || undefined,
         location: slide.location
@@ -54,6 +56,7 @@ export function exportToJsonFile(storyData: StoryData, filename: string = 'story
  */
 export function createDefaultStoryData(): StoryData {
   return {
+    mapStyle: 'editorial',
     slides: [
       {
         type: 'overview',

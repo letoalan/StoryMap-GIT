@@ -53,7 +53,7 @@ export function buildSelfContainedHTML(rawJson: unknown, options: FragmentOption
   const containerId = options.containerId || generateUniqueContainerId();
 
   const renderConfig = {
-    mapStyle: options.mapStyle || 'base',
+    mapStyle: options.mapStyle || parsedStoryData.mapStyle || 'editorial',
     tilesBaseUrl: options.tilesBaseUrl || 'https://eluard-tourisme.github.io/storymap-tiles',
     okfData: options.okfData,
   };
